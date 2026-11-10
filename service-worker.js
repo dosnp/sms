@@ -1,7 +1,7 @@
+const CACHE_NAME = "np-sports-pwa-v0.1.1";
+const CACHE_PREFIX = "np-sports-pwa-";
 
-const CACHE = "np-sports-pwa-v0.1.1";
-
-const FILES = [
+const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
@@ -16,22 +16,19 @@ const FILES = [
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
-    const cache = await caches.open(CACHE);
-    await cache.addAll(FILES);
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(APP_SHELL);
     await self.skipWaiting();
   })());
 });
 
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
-    const keys = await caches.keys();
+    const cacheKeys = await caches.keys();
 
     await Promise.all(
-      keys
-        .filter(key =>
-          key.startsWith("np-sports-pwa-") &&
-          key !== CACHE
-        )
+      cacheKeys
+        .filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
         .map(key => caches.delete(key))
     );
 
@@ -51,8 +48,18 @@ self.addEventListener("fetch", event => {
     return;
   }
 
+  const isAppAsset =
+    request.mode === "navigate" ||
+    request.destination === "style" ||
+    request.destination === "script" ||
+    request.destination === "image" ||
+    request.destination === "font" ||
+    request.destination === "manifest";
+
+  if (!isAppAsset) return;
+
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE);
+    const cache = await caches.open(CACHE_NAME);
 
     try {
       const response = await fetch(request);
@@ -60,22 +67,26 @@ self.addEventListener("fetch", event => {
       if (response && response.ok && response.type === "basic") {
         try {
           await cache.put(request, response.clone());
-        } catch (_) {}
+        } catch (_) {
+          // A cache write failure should not prevent the live response.
+        }
       }
 
       return response;
-
     } catch (error) {
-      const cached = await cache.match(request);
-
-      if (cached) return cached;
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) return cachedResponse;
 
       if (request.mode === "navigate") {
-        const fallback = await cache.match("./index.html");
-        if (fallback) return fallback;
+        const offlinePage = await cache.match("./index.html");
+        if (offlinePage) return offlinePage;
       }
 
-      throw error;
+      return new Response("This resource is unavailable offline.", {
+        status: 503,
+        statusText: "Offline",
+        headers: { "Content-Type": "text/plain; charset=utf-8" }
+      });
     }
   })());
 });

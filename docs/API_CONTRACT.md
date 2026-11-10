@@ -1,14 +1,89 @@
 # Proposed Public API Contract
 
-These routes are expected by the frontend but do not exist until implemented in the Apps Script / proxy backend.
+This is the frontend integration contract. These endpoints are not implemented by this frontend package.
 
-- GET `/api/public/v1/province` → province and districts
-- GET `/api/public/v1/districts/{districtSlug}` → district and its public divisions
-- GET `/api/public/v1/divisions/{districtSlug}/{divisionSlug}` → division and approved public sections
+## 1. Province directory
 
-Server-side requirements:
-- Resolve slugs against Central Registry; do not trust client-supplied IDs.
-- Verify that each division belongs to the requested district.
-- Return only fields explicitly marked for public visibility.
-- Never return authentication data, passwords, hashes, salts, pepper, session tokens, private assignments, personal contact details, payment data or internal Drive IDs.
-- Keep this public API read-only.
+`GET /api/public/v1/province`
+
+Expected response data:
+
+```json
+{
+  "province": {
+    "id": "NORTHERN",
+    "name": "Northern Province"
+  },
+  "districts": [
+    {
+      "id": "DISTRICT_ID",
+      "code": "JAF",
+      "name": "Jaffna",
+      "slug": "jaffna",
+      "status": "ACTIVE"
+    }
+  ]
+}
+```
+
+## 2. District public page
+
+`GET /api/public/v1/districts/{districtSlug}`
+
+Expected response data:
+
+```json
+{
+  "district": {
+    "id": "DISTRICT_ID",
+    "name": "Jaffna",
+    "slug": "jaffna"
+  },
+  "divisions": [
+    {
+      "id": "DIVISION_ID",
+      "name": "Point Pedro",
+      "slug": "point-pedro",
+      "status": "ACTIVE"
+    }
+  ]
+}
+```
+
+## 3. Division public page
+
+`GET /api/public/v1/divisions/{districtSlug}/{divisionSlug}`
+
+Expected response data:
+
+```json
+{
+  "district": {
+    "id": "DISTRICT_ID",
+    "name": "Jaffna",
+    "slug": "jaffna"
+  },
+  "division": {
+    "id": "DIVISION_ID",
+    "name": "Point Pedro",
+    "slug": "point-pedro",
+    "publicDescription": "Approved public description"
+  },
+  "publicSections": [
+    {
+      "title": "Sports events",
+      "description": "Approved public information"
+    }
+  ]
+}
+```
+
+## Mandatory server-side security rules
+
+- Resolve all slugs against the Central Registry on the server.
+- Verify that the division belongs to the requested district.
+- Return only records explicitly marked and approved for public visibility.
+- Never return AUTH_USERS, password hashes, salts, pepper, session tokens, private assignments, personal contact details, payment information, player-private records, or internal Drive IDs.
+- Keep this API read-only.
+- Do not trust client-side visibility checks as a security boundary.
+- Log and rate-limit public requests appropriately.

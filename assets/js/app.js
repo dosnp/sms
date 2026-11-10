@@ -1,25 +1,401 @@
 (() => {
-const cfg=window.PPSM_CONFIG||{},app=document.getElementById("app");
-document.getElementById("year").textContent=new Date().getFullYear();
-const districts=[
-{id:"JAF",name:"Jaffna",slug:"jaffna"},{id:"KIL",name:"Kilinochchi",slug:"kilinochchi"},
-{id:"MAN",name:"Mannar",slug:"mannar"},{id:"MUL",name:"Mullaitivu",slug:"mullaitivu"},
-{id:"VAV",name:"Vavuniya",slug:"vavuniya"}];
-const preview={jaffna:[{name:"Point Pedro",slug:"point-pedro",status:"Registered"}]};
-let installPrompt=null;
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function route(){let p=(location.hash||"#/province").replace(/^#\/?/,"").split("/").filter(Boolean);if(!p.length||p[0]==="province")return{page:"province"};if(p[0]==="districts")return{page:"districts"};if(p[0]==="district"&&p[1])return{page:"district",slug:p[1]};if(p[0]==="division"&&p[1]&&p[2])return{page:"division",district:p[1],division:p[2]};if(p[0]==="about")return{page:"about"};return{page:"404"}}
-async function get(path){if(!cfg.apiBaseUrl)return null;let r=await fetch(cfg.apiBaseUrl.replace(/\/$/,"")+cfg.apiPrefix+path,{headers:{Accept:"application/json"},cache:"no-store"});if(!r.ok)throw Error("Public API error "+r.status);let j=await r.json();if(j.success===false)throw Error(j.message||"API error");return j.data??j}
-function card(d){return `<a class="card" href="#/district/${encodeURIComponent(d.slug)}"><span class="card-icon">${esc(d.id[0])}</span><h3>${esc(d.name)}</h3><p>District sports information and registered divisions.</p><div class="meta"><span>${esc(d.id)}</span><span class="pill">View district →</span></div></a>`}
-function home(data){let list=data?.districts||districts;app.innerHTML=`<section class="hero"><div class="eyebrow">Department of Sports · Provincial Office</div><h1>Northern Province Sports Management</h1><p>Explore public sports information by district and division. Select a district to view its registered divisions and information published by the Department of Sports.</p><a class="btn" href="#/districts">Explore districts →</a></section><div class="section-head"><div><h2>Five districts of Northern Province</h2><p>Select a district to continue.</p></div><a href="#/districts">View all →</a></div><div class="grid">${list.map(card).join("")}</div><div class="info">${cfg.previewMode?"Preview version: navigation is ready. Live records will appear after the Central Registry public API is connected.":"Public records are retrieved from the Central Registry."}</div>`}
-function crumbs(items){return `<div class="breadcrumbs">${items.map((x,i)=>(i?" / ":"")+(x.href?`<a href="${x.href}">${esc(x.name)}</a>`:`<b>${esc(x.name)}</b>`)).join("")}</div>`}
-async function district(slug){let d=districts.find(x=>x.slug===slug);if(!d)return notFound();let data=null;try{data=await get("/districts/"+encodeURIComponent(slug))}catch(e){}let info=data?.district||d,divs=data?.divisions||preview[slug]||[];app.innerHTML=`${crumbs([{name:"Provincial Office",href:"#/province"},{name:"Districts",href:"#/districts"},{name:info.name}])}<h1 class="page-title">${esc(info.name)} District</h1><p class="muted">Public sports information and divisional connections.</p><section class="panel"><h2>Divisions</h2><p class="muted">Select a division to view its public information.</p>${divs.length?`<div class="division-list">${divs.map(v=>`<a class="division" href="#/division/${slug}/${v.slug}"><span><b>${esc(v.name)}</b><small>${esc(v.status||"Registered division")}</small></span>→</a>`).join("")}</div>`:`<div class="empty">No public division records are available here yet. Division names will be loaded from the Central Registry after API integration.</div>`}<div class="notice">Preview page only. Live district and division data are not connected yet.</div></section>`}
-async function division(ds,vs){let d=districts.find(x=>x.slug===ds),v=(preview[ds]||[]).find(x=>x.slug===vs);if(!d)return notFound();let data=null;try{data=await get("/divisions/"+encodeURIComponent(ds)+"/"+encodeURIComponent(vs))}catch(e){}v=data?.division||v;if(!v)return notFound();app.innerHTML=`${crumbs([{name:"Provincial Office",href:"#/province"},{name:"Districts",href:"#/districts"},{name:d.name,href:"#/district/"+ds},{name:v.name}])}<h1 class="page-title">${esc(v.name)} Division</h1><p class="muted">${esc(d.name)} District · Northern Province</p><div class="detail"><section class="panel"><h2>Public division information</h2><p>${esc(v.publicDescription||"This division public page is prepared. Approved sports information will appear after the public API is connected.")}</p><div class="empty">Live sports records, notices, events and other approved public information have not yet been connected.</div></section><aside class="panel"><h2>Division details</h2><ul><li>Province: Northern Province</li><li>District: ${esc(d.name)}</li><li>Division: ${esc(v.name)}</li><li>Access: Public view</li></ul></aside></div><div class="notice">Preview page only. Do not treat this as the live official public service yet.</div>`}
-function about(){app.innerHTML=`${crumbs([{name:"Provincial Office",href:"#/province"},{name:"About"}])}<h1 class="page-title">About this public portal</h1><section class="panel"><h2>Purpose</h2><p class="muted">A public information layer for the Northern Province Department of Sports, organised by province, district and division.</p><div class="detail"><div class="empty"><b>Provincial level</b><br>Province-wide public information and district directory.</div><div class="empty"><b>District and divisional levels</b><br>Only information approved for public release will be displayed.</div></div><div class="info">Private officer accounts, passwords, payment details and non-public personal records must never be exposed through this portal.</div></section>`}
-function notFound(){app.innerHTML=`<section class="panel"><h2>Page not found</h2><p class="muted">This page does not exist or has not been published.</p><a class="btn" href="#/province">Return home</a></section>`}
-async function render(){let r=route();try{if(r.page==="province"){let d=null;try{d=await get("/province")}catch(e){}home(d)}else if(r.page==="districts")home(null);else if(r.page==="district")await district(r.slug);else if(r.page==="division")await division(r.district,r.division);else if(r.page==="about")about();else notFound()}catch(e){app.innerHTML=`<section class="panel"><h2>Unable to load page</h2><p>${esc(e.message)}</p></section>`}}
-window.addEventListener("hashchange",render);render();
-window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;document.getElementById("install").hidden=false});
-document.getElementById("install").addEventListener("click",async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;document.getElementById("install").hidden=true});
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(console.warn));
+  "use strict";
+
+  const config = window.PPSM_CONFIG || {};
+  const app = document.getElementById("app");
+  const year = document.getElementById("year");
+  const installButton = document.getElementById("installButton");
+
+  if (year) year.textContent = String(new Date().getFullYear());
+
+  const districts = [
+    { id: "JAF", name: "Jaffna", slug: "jaffna" },
+    { id: "KIL", name: "Kilinochchi", slug: "kilinochchi" },
+    { id: "MAN", name: "Mannar", slug: "mannar" },
+    { id: "MUL", name: "Mullaitivu", slug: "mullaitivu" },
+    { id: "VAV", name: "Vavuniya", slug: "vavuniya" }
+  ];
+
+  // This is the only division explicitly known from the current setup.
+  // Do not invent the names of the remaining divisions.
+  const previewDivisions = {
+    jaffna: [
+      { id: "POINT-PEDRO", name: "Point Pedro", slug: "point-pedro", status: "Registered" }
+    ]
+  };
+
+  let deferredInstallPrompt = null;
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[character]));
+  }
+
+  function safeDecode(value) {
+    try { return decodeURIComponent(value); }
+    catch (_) { return ""; }
+  }
+
+  function slugify(value) {
+    return String(value || "")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+
+  function route() {
+    const raw = (location.hash || "#/province").replace(/^#\/?/, "");
+    const parts = raw.split("/").filter(Boolean).map(safeDecode);
+
+    if (!parts.length || parts[0] === "province") return { page: "province" };
+    if (parts[0] === "districts") return { page: "districts" };
+    if (parts[0] === "district" && parts[1]) return { page: "district", districtSlug: parts[1] };
+    if (parts[0] === "division" && parts[1] && parts[2]) {
+      return { page: "division", districtSlug: parts[1], divisionSlug: parts[2] };
+    }
+    if (parts[0] === "about") return { page: "about" };
+    return { page: "not-found" };
+  }
+
+  function setActiveNav(page) {
+    document.querySelectorAll("[data-nav]").forEach(link => {
+      const key = link.getAttribute("data-nav");
+      const active =
+        (page === "province" && key === "province") ||
+        (["districts", "district", "division"].includes(page) && key === "districts") ||
+        (page === "about" && key === "about");
+      link.classList.toggle("active", active);
+      if (active) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+  }
+
+  function getApiUrl(path) {
+    const base = String(config.apiBaseUrl || "").replace(/\/+$/, "");
+    const prefix = String(config.apiPrefix || "/api/public/v1");
+    const normalizedPrefix = prefix.startsWith("/") ? prefix : "/" + prefix;
+    return base + normalizedPrefix + path;
+  }
+
+  async function apiGet(path) {
+    if (!config.apiBaseUrl) return null;
+
+    const response = await fetch(getApiUrl(path), {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      cache: "no-store",
+      credentials: "omit"
+    });
+
+    if (!response.ok) {
+      throw new Error("Public information service returned HTTP " + response.status);
+    }
+
+    const payload = await response.json();
+    if (payload && payload.success === false) {
+      throw new Error(payload.message || "The public information service returned an error.");
+    }
+    return payload && payload.data !== undefined ? payload.data : payload;
+  }
+
+  function breadcrumbs(items) {
+    return `<div class="breadcrumbs">${items.map((item, index) => {
+      const separator = index ? "<span aria-hidden=\"true\">›</span>" : "";
+      return separator + (item.href
+        ? `<a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a>`
+        : `<strong>${escapeHtml(item.label)}</strong>`);
+    }).join("")}</div>`;
+  }
+
+  function districtCard(district) {
+    const slug = district.slug || slugify(district.name);
+    const id = district.id || district.code || slug.slice(0, 3).toUpperCase();
+
+    return `
+      <a class="district-card" href="#/district/${encodeURIComponent(slug)}">
+        <div class="card-top">
+          <span class="district-icon">${escapeHtml(String(id).slice(0, 1))}</span>
+          <span class="card-arrow" aria-hidden="true">↗</span>
+        </div>
+        <h3>${escapeHtml(district.name)}</h3>
+        <p>District sports information and registered divisions.</p>
+        <div class="card-meta">
+          <span>${escapeHtml(id)}</span>
+          <span class="pill">View district</span>
+        </div>
+      </a>`;
+  }
+
+  function renderProvince(data) {
+    const list = data && Array.isArray(data.districts) ? data.districts : districts;
+
+    app.innerHTML = `
+      <section class="hero">
+        <p class="eyebrow">Department of Sports · Provincial Office</p>
+        <h1>Northern Province Sports Management</h1>
+        <p>Explore public sports information by district and division. Select a district to view its registered divisions and the information approved for public access by the Department of Sports.</p>
+        <div class="hero-actions">
+          <a class="button button-light" href="#/districts">Explore districts <span aria-hidden="true">&nbsp;→</span></a>
+          <a class="button button-outline" href="#/about">About the portal</a>
+        </div>
+      </section>
+
+      <section aria-labelledby="district-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="district-title">Five districts of Northern Province</h2>
+            <p>Select a district to continue to its public information page.</p>
+          </div>
+          <a class="text-link" href="#/districts">View all districts →</a>
+        </div>
+        <div class="district-grid">${list.map(districtCard).join("")}</div>
+      </section>
+
+      <div class="info-strip">
+        <span class="info-icon" aria-hidden="true">i</span>
+        <span>${config.previewMode
+          ? "Preview version: the public navigation is ready. Live district and division records will appear after the Central Registry public API is implemented and connected."
+          : "Public records are retrieved from the Department of Sports Central Registry."}</span>
+      </div>`;
+  }
+
+  function renderDistrictDirectory() {
+    app.innerHTML = `
+      <section class="page-head">
+        ${breadcrumbs([{ label: "Provincial Office", href: "#/province" }, { label: "Districts" }])}
+        <h1>District directory</h1>
+        <p>Choose one of the five administrative districts in Northern Province.</p>
+      </section>
+      <div class="district-grid">${districts.map(districtCard).join("")}
+      </div>`;
+  }
+
+  async function renderDistrict(slug) {
+    const fallback = districts.find(district => district.slug === slug);
+    if (!fallback) return renderNotFound();
+
+    let data = null;
+    let apiError = null;
+
+    try {
+      data = await apiGet("/districts/" + encodeURIComponent(slug));
+    } catch (error) {
+      apiError = error;
+    }
+
+    const district = data && data.district ? data.district : fallback;
+    const divisions = data && Array.isArray(data.divisions)
+      ? data.divisions
+      : (previewDivisions[slug] || []);
+
+    const divisionMarkup = divisions.length
+      ? `<div class="division-list">${divisions.map(division => {
+          const divisionSlug = division.slug || slugify(division.name);
+          return `
+            <a class="division-link" href="#/division/${encodeURIComponent(slug)}/${encodeURIComponent(divisionSlug)}">
+              <span>
+                <strong>${escapeHtml(division.name)}</strong>
+                <small>${escapeHtml(division.status || "Registered division")}</small>
+              </span>
+              <span class="card-arrow" aria-hidden="true">→</span>
+            </a>`;
+        }).join("")}</div>`
+      : `<div class="empty-state">No public division records are available for this district yet. Division names will be displayed after they are registered and approved for public viewing in the Central Registry.</div>`;
+
+    app.innerHTML = `
+      <section class="page-head">
+        ${breadcrumbs([
+          { label: "Provincial Office", href: "#/province" },
+          { label: "Districts", href: "#/districts" },
+          { label: district.name }
+        ])}
+        <h1>${escapeHtml(district.name)} District</h1>
+        <p>Public sports information and registered divisional connections for ${escapeHtml(district.name)} District.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Divisions</h2>
+        <p>Select a division to view its public sports information.</p>
+        ${divisionMarkup}
+        ${config.previewMode || apiError
+          ? `<div class="status-banner">Preview information only. The live Central Registry public API is not connected yet.</div>`
+          : ""}
+      </section>`;
+  }
+
+  async function renderDivision(districtSlug, divisionSlug) {
+    const districtFallback = districts.find(district => district.slug === districtSlug);
+    if (!districtFallback) return renderNotFound();
+
+    let data = null;
+    let apiError = null;
+
+    try {
+      data = await apiGet(
+        "/divisions/" +
+        encodeURIComponent(districtSlug) + "/" +
+        encodeURIComponent(divisionSlug)
+      );
+    } catch (error) {
+      apiError = error;
+    }
+
+    const preview = (previewDivisions[districtSlug] || [])
+      .find(division => division.slug === divisionSlug);
+
+    const district = data && data.district ? data.district : districtFallback;
+    const division = data && data.division ? data.division : preview;
+
+    if (!division) return renderNotFound();
+
+    const publicSections = data && Array.isArray(data.publicSections)
+      ? data.publicSections
+      : [];
+
+    const sectionsMarkup = publicSections.length
+      ? publicSections.map(section => `
+          <div class="about-item">
+            <strong>${escapeHtml(section.title || "Public information")}</strong>
+            <span>${escapeHtml(section.description || "")}</span>
+          </div>`).join("")
+      : `<div class="empty-state">The division page is prepared. Approved sports records, notices, events and other public information will appear after the secure public API is connected.</div>`;
+
+    app.innerHTML = `
+      <section class="page-head">
+        ${breadcrumbs([
+          { label: "Provincial Office", href: "#/province" },
+          { label: "Districts", href: "#/districts" },
+          { label: district.name, href: "#/district/" + districtSlug },
+          { label: division.name }
+        ])}
+        <h1>${escapeHtml(division.name)} Division</h1>
+        <p>${escapeHtml(district.name)} District · Northern Province</p>
+      </section>
+
+      <div class="detail-grid">
+        <section class="panel">
+          <h2>Public division information</h2>
+          <p>${escapeHtml(division.publicDescription || "This is the public information page for this division.")}</p>
+          ${sectionsMarkup}
+        </section>
+
+        <aside class="panel">
+          <h2>Division details</h2>
+          <ul class="detail-list">
+            <li><strong>Province:</strong> Northern Province</li>
+            <li><strong>District:</strong> ${escapeHtml(district.name)}</li>
+            <li><strong>Division:</strong> ${escapeHtml(division.name)}</li>
+            <li><strong>Access:</strong> Public view</li>
+          </ul>
+        </aside>
+      </div>
+
+      ${config.previewMode || apiError
+        ? `<div class="status-banner">Preview page only. Official live records have not yet been connected.</div>`
+        : ""}`;
+  }
+
+  function renderAbout() {
+    app.innerHTML = `
+      <section class="page-head">
+        ${breadcrumbs([{ label: "Provincial Office", href: "#/province" }, { label: "About" }])}
+        <h1>About this public portal</h1>
+        <p>A public-facing information layer for the Northern Province Department of Sports.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Purpose</h2>
+        <p>This portal is intended to make approved sports information easier to access by province, district and division. Public visitors do not need an officer account to view information deliberately published for public access.</p>
+        <div class="about-grid">
+          <div class="about-item">
+            <strong>Provincial level</strong>
+            <span>Province-wide public information and district directory.</span>
+          </div>
+          <div class="about-item">
+            <strong>District level</strong>
+            <span>District profile and registered divisional connections.</span>
+          </div>
+          <div class="about-item">
+            <strong>Divisional level</strong>
+            <span>Only information approved for public release by the relevant division.</span>
+          </div>
+        </div>
+        <div class="info-strip">
+          <span class="info-icon" aria-hidden="true">i</span>
+          <span>Private officer accounts, passwords, payment details and non-public personal records are not part of this public portal.</span>
+        </div>
+      </section>`;
+  }
+
+  function renderNotFound() {
+    app.innerHTML = `
+      <section class="panel">
+        <h2>Page not found</h2>
+        <p>The requested public page does not exist or is not published.</p>
+        <a class="button button-light" href="#/province">Return to home</a>
+      </section>`;
+  }
+
+  async function render() {
+    const current = route();
+    setActiveNav(current.page);
+
+    try {
+      if (current.page === "province") {
+        let data = null;
+        try { data = await apiGet("/province"); } catch (_) {}
+        renderProvince(data);
+      } else if (current.page === "districts") {
+        renderDistrictDirectory();
+      } else if (current.page === "district") {
+        await renderDistrict(current.districtSlug);
+      } else if (current.page === "division") {
+        await renderDivision(current.districtSlug, current.divisionSlug);
+      } else if (current.page === "about") {
+        renderAbout();
+      } else {
+        renderNotFound();
+      }
+    } catch (error) {
+      app.innerHTML = `
+        <section class="panel">
+          <h2>Unable to load this page</h2>
+          <p>${escapeHtml(error.message || "Please try again later.")}</p>
+          <a class="button button-light" href="#/province">Return to home</a>
+        </section>`;
+    }
+  }
+
+  window.addEventListener("hashchange", render);
+  render();
+
+  window.addEventListener("beforeinstallprompt", event => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    if (installButton) installButton.hidden = false;
+  });
+
+  if (installButton) {
+    installButton.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      installButton.hidden = true;
+    });
+  }
+
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("./service-worker.js")
+        .catch(error => console.warn("Service worker registration failed:", error));
+    });
+  }
 })();
