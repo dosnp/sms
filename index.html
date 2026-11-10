@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#173a58">
-  <meta name="description" content="Public sports information portal for the Northern Province Department of Sports, Sri Lanka.">
+  <meta name="description" content="Public sports information and secure administration portal for the Northern Province Department of Sports, Sri Lanka.">
   <title>Northern Province Sports Management</title>
   <link rel="icon" href="assets/icons/np.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="assets/icons/np-icon-180.png">
@@ -12,9 +12,9 @@
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
+  <a class="skip-link" href="#app">Skip to content</a>
 
-  <header class="site-header">
+  <header class="site-header" id="siteHeader">
     <a class="brand" href="#/province" aria-label="Northern Province Sports Management home">
       <span class="brand-mark">NP</span>
       <span class="brand-copy">
@@ -23,26 +23,27 @@
       </span>
     </a>
 
-    <nav class="top-nav" aria-label="Main navigation">
+    <nav class="top-nav" aria-label="Main navigation" id="publicNav">
       <a href="#/province" data-nav="province">Home</a>
       <a href="#/districts" data-nav="districts">Districts</a>
       <a href="#/about" data-nav="about">About</a>
     </nav>
 
-    <div class="header-actions">
+    <div class="header-actions" id="headerActions">
       <span class="public-pill"><span class="status-dot"></span> Public portal</span>
+      <a class="header-admin-link" href="#/admin/login">Officer login</a>
       <button id="installButton" class="install-button" type="button" hidden>Install app</button>
     </div>
   </header>
 
-  <main id="main" class="app-shell" tabindex="-1">
-    <section class="loading-panel" aria-live="polite">
+  <main id="app" class="app-shell" tabindex="-1" aria-live="polite">
+    <section class="loading-panel">
       <div class="loader" aria-hidden="true"></div>
       <p>Loading Northern Province Sports Portal…</p>
     </section>
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" id="siteFooter">
     <div class="footer-brand">
       <span class="brand-mark brand-mark-small">NP</span>
       <span>
@@ -55,7 +56,7 @@
   </footer>
 
   <noscript>
-    <div class="noscript">JavaScript is required to use this public portal.</div>
+    <div class="noscript">JavaScript is required to use this portal.</div>
   </noscript>
 
   <script src="assets/js/config.js"></script>
